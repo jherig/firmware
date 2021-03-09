@@ -110,14 +110,15 @@ static void addBasicScancode(uint8_t scancode)
     if (!scancode) {
         return;
     }
-    for (uint8_t i = 0; i < USB_BASIC_KEYBOARD_MAX_KEYS; i++) {
-        if (s->ms.macroBasicKeyboardReport.scancodes[i] == scancode) {
+    uint16_t maxKeys = usbBasicKeyboardProtocol == 0 ? USB_BOOT_KEYBOARD_MAX_KEYS : USB_BASIC_KEYBOARD_MAX_KEYS;
+    for (uint8_t i = 0; i < maxKeys; i++) {
+        if (MacroBasicKeyboardReport.scancodes[i] == scancode) {
             return;
         }
     }
-    for (uint8_t i = 0; i < USB_BASIC_KEYBOARD_MAX_KEYS; i++) {
-        if (!s->ms.macroBasicKeyboardReport.scancodes[i]) {
-            s->ms.macroBasicKeyboardReport.scancodes[i] = scancode;
+    for (uint8_t i = 0; i < maxKeys; i++) {
+        if (!MacroBasicKeyboardReport.scancodes[i]) {
+            MacroBasicKeyboardReport.scancodes[i] = scancode;
             break;
         }
     }
@@ -128,9 +129,10 @@ static void deleteBasicScancode(uint8_t scancode)
     if (!scancode) {
         return;
     }
-    for (uint8_t i = 0; i < USB_BASIC_KEYBOARD_MAX_KEYS; i++) {
-        if (s->ms.macroBasicKeyboardReport.scancodes[i] == scancode) {
-            s->ms.macroBasicKeyboardReport.scancodes[i] = 0;
+    uint16_t maxKeys = usbBasicKeyboardProtocol == 0 ? USB_BOOT_KEYBOARD_MAX_KEYS : USB_BASIC_KEYBOARD_MAX_KEYS;
+    for (uint8_t i = 0; i < maxKeys; i++) {
+        if (MacroBasicKeyboardReport.scancodes[i] == scancode) {
+            MacroBasicKeyboardReport.scancodes[i] = 0;
             return;
         }
     }
