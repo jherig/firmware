@@ -3,8 +3,9 @@
 #include "usb_report_updater.h"
 
 static usb_basic_keyboard_report_t usbBasicKeyboardReports[2];
-static uint8_t usbBasicKeyboardOutBuffer[USB_BASIC_KEYBOARD_OUT_REPORT_LENGTH];
-usb_hid_protocol_t usbBasicKeyboardProtocol;
+static uint8_t usbBasicKeyboardProtocol = 1;
+static uint8_t usbBasicKeyboardInBuffer[USB_BASIC_KEYBOARD_SET_REPORT_LENGTH];
+static uint32_t usbBasicKeyboardReportLastSendTime = 0;
 uint32_t UsbBasicKeyboardActionCounter;
 usb_basic_keyboard_report_t* ActiveUsbBasicKeyboardReport = usbBasicKeyboardReports;
 
@@ -109,8 +110,8 @@ usb_status_t UsbBasicKeyboardCallback(class_handle_t handle, uint32_t event, voi
         }
         case kUSB_DeviceHidEventRequestReportBuffer: {
             usb_device_hid_report_struct_t *report = (usb_device_hid_report_struct_t*)param;
-            if (report->reportLength <= sizeof(usbBasicKeyboardOutBuffer)) {
-                report->reportBuffer = usbBasicKeyboardOutBuffer;
+            if (report->reportLength <= USB_BASIC_KEYBOARD_SET_REPORT_LENGTH) {
+                report->reportBuffer = usbBasicKeyboardInBuffer;
                 error = kStatus_USB_Success;
             } else {
                 error = kStatus_USB_AllocFail;
