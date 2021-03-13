@@ -190,16 +190,9 @@ static void addSystemScancode(uint8_t scancode)
     if (!scancode) {
         return;
     }
-    for (uint8_t i = 0; i < USB_SYSTEM_KEYBOARD_MAX_KEYS; i++) {
-        if (s->ms.macroSystemKeyboardReport.scancodes[i] == scancode) {
-            return;
-        }
-    }
-    for (uint8_t i = 0; i < USB_SYSTEM_KEYBOARD_MAX_KEYS; i++) {
-        if (!s->ms.macroSystemKeyboardReport.scancodes[i]) {
-            s->ms.macroSystemKeyboardReport.scancodes[i] = scancode;
-            break;
-        }
+    if (USB_SYSTEM_KEYBOARD_IS_IN_BITFIELD(scancode))
+    {
+        set_bit(scancode - USB_SYSTEM_KEYBOARD_MIN_BITFIELD_SCANCODE, MacroSystemKeyboardReport.bitfield);
     }
 }
 
@@ -208,11 +201,9 @@ static void deleteSystemScancode(uint8_t scancode)
     if (!scancode) {
         return;
     }
-    for (uint8_t i = 0; i < USB_SYSTEM_KEYBOARD_MAX_KEYS; i++) {
-        if (s->ms.macroSystemKeyboardReport.scancodes[i] == scancode) {
-            s->ms.macroSystemKeyboardReport.scancodes[i] = 0;
-            return;
-        }
+    if (USB_SYSTEM_KEYBOARD_IS_IN_BITFIELD(scancode))
+    {
+        clear_bit(scancode - USB_SYSTEM_KEYBOARD_MIN_BITFIELD_SCANCODE, MacroSystemKeyboardReport.bitfield);
     }
 }
 
