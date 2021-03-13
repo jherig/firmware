@@ -110,20 +110,22 @@ static void addBasicScancode(uint8_t scancode)
     if (!scancode) {
         return;
     }
-    if (USB_BASIC_KEYBOARD_IS_IN_BITFIELD(scancode)) {
-        set_bit(scancode - USB_BASIC_KEYBOARD_MIN_BITFIELD_SCANCODE, MacroBasicKeyboardReport.bitfield);
-    } else {
-        for (uint8_t i = 0; i < USB_BASIC_KEYBOARD_MAX_KEYS; i++) {
+    if (usbBasicKeyboardProtocol==0) {
+        for (uint8_t i = 0; i < USB_BOOT_KEYBOARD_MAX_KEYS; i++) {
             if (MacroBasicKeyboardReport.scancodes[i] == scancode) {
                 return;
             }
         }
-        for (uint8_t i = 0; i < USB_BASIC_KEYBOARD_MAX_KEYS; i++) {
+        for (uint8_t i = 0; i < USB_BOOT_KEYBOARD_MAX_KEYS; i++) {
             if (!MacroBasicKeyboardReport.scancodes[i]) {
                 MacroBasicKeyboardReport.scancodes[i] = scancode;
                 break;
             }
         }
+    } else if (USB_BASIC_KEYBOARD_IS_IN_BITFIELD(scancode)) {
+        set_bit(scancode - USB_BASIC_KEYBOARD_MIN_BITFIELD_SCANCODE, MacroBasicKeyboardReport.bitfield);
+    } else if (USB_BASIC_KEYBOARD_IS_IN_MODIFIERS(scancode)) {
+        set_bit(scancode - USB_BASIC_KEYBOARD_MIN_MODIFIERS_SCANCODE, &MacroBasicKeyboardReport.modifiers);
     }
 }
 
@@ -132,15 +134,17 @@ static void deleteBasicScancode(uint8_t scancode)
     if (!scancode) {
         return;
     }
-    if (USB_BASIC_KEYBOARD_IS_IN_BITFIELD(scancode)) {
-        clear_bit(scancode - USB_BASIC_KEYBOARD_MIN_BITFIELD_SCANCODE, MacroBasicKeyboardReport.bitfield);
-    } else {
-        for (uint8_t i = 0; i < USB_BASIC_KEYBOARD_MAX_KEYS; i++) {
+    if (usbBasicKeyboardProtocol==0) {
+        for (uint8_t i = 0; i < USB_BOOT_KEYBOARD_MAX_KEYS; i++) {
             if (MacroBasicKeyboardReport.scancodes[i] == scancode) {
                 MacroBasicKeyboardReport.scancodes[i] = 0;
                 return;
             }
         }
+    } else if (USB_BASIC_KEYBOARD_IS_IN_BITFIELD(scancode)) {
+        clear_bit(scancode - USB_BASIC_KEYBOARD_MIN_BITFIELD_SCANCODE, MacroBasicKeyboardReport.bitfield);
+    } else if (USB_BASIC_KEYBOARD_IS_IN_MODIFIERS(scancode)) {
+        clear_bit(scancode - USB_BASIC_KEYBOARD_MIN_MODIFIERS_SCANCODE, &MacroBasicKeyboardReport.modifiers);
     }
 }
 
@@ -589,14 +593,8 @@ static void clearScancodes()
 
 static macro_result_t dispatchText(const char* text, uint16_t textLen)
 {
-    s->ms.reportsUsed = true;
-    static macro_state_t* dispatchMutex = NULL;
-    if (dispatchMutex != s && dispatchMutex != NULL) {
-        return MacroResult_Waiting;
-    } else {
-        dispatchMutex = s;
-    }
-    uint8_t max_keys = USB_BASIC_KEYBOARD_MAX_KEYS/2;
+    static uint16_t textIndex;
+    static uint8_t reportIndex = USB_BOOT_KEYBOARD_MAX_KEYS;
     char character = 0;
     uint8_t scancode = 0;
     uint8_t mods = 0;
@@ -623,29 +621,27 @@ static macro_result_t dispatchText(const char* text, uint16_t textLen)
     }
 
     // If all characters have been sent, finish.
-    if (s->as.dispatchData.textIdx == textLen) {
-        s->as.dispatchData.textIdx = 0;
-        s->as.dispatchData.reportIdx = max_keys;
-        memset(&s->ms.macroBasicKeyboardReport, 0, sizeof s->ms.macroBasicKeyboardReport);
-        dispatchMutex = NULL;
-        return MacroResult_Finished;
+    if (textIndex == currentMacroAction.text.textLen) {
+        textIndex = 0;
+        reportIndex = USB_BOOT_KEYBOARD_MAX_KEYS;
+        memset(&MacroBasicKeyboardReport, 0, sizeof MacroBasicKeyboardReport);
+        return false;
     }
 
     // Whenever the report is full, we clear the report and send it empty before continuing.
-    if (s->as.dispatchData.reportIdx == max_keys) {
-        s->as.dispatchData.reportIdx = 0;
-
-        memset(&s->ms.macroBasicKeyboardReport, 0, sizeof s->ms.macroBasicKeyboardReport);
-        return MacroResult_Blocking;
+    if (reportIndex == USB_BOOT_KEYBOARD_MAX_KEYS) {
+        reportIndex = 0;
+        memset(&MacroBasicKeyboardReport, 0, sizeof MacroBasicKeyboardReport);
+        return true;
     }
 
     // If current character is already contained in the report, we need to
     // release it first. We do so by artificially marking the report
     // full. Next call will do rest of the work for us.
-    for (uint8_t i = 0; i < s->as.dispatchData.reportIdx; i++) {
-        if (s->ms.macroBasicKeyboardReport.scancodes[i] == scancode) {
-            s->as.dispatchData.reportIdx = max_keys;
-            return MacroResult_Blocking;
+    for (uint8_t i = 0; i < reportIndex; i++) {
+        if (MacroBasicKeyboardReport.scancodes[i] == scancode) {
+            reportIndex = USB_BOOT_KEYBOARD_MAX_KEYS;
+            return true;
         }
     }
 
