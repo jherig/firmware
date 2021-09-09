@@ -73,7 +73,6 @@ usb_status_t UsbBasicKeyboardCallback(class_handle_t handle, uint32_t event, voi
             }
             break;
         case kUSB_DeviceHidEventRecvResponse:
-            error = kStatus_USB_InvalidRequest;
             break;
 
         case kUSB_DeviceHidEventGetReport: {

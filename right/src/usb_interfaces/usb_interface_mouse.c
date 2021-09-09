@@ -70,7 +70,6 @@ usb_status_t UsbMouseCallback(class_handle_t handle, uint32_t event, void *param
             }
             break;
         case kUSB_DeviceHidEventRecvResponse:
-            error = kStatus_USB_InvalidRequest;
             break;
 
         case kUSB_DeviceHidEventGetReport: {

@@ -69,7 +69,6 @@ usb_status_t UsbMediaKeyboardCallback(class_handle_t handle, uint32_t event, voi
             }
             break;
         case kUSB_DeviceHidEventRecvResponse:
-            error = kStatus_USB_InvalidRequest;
             break;
 
         case kUSB_DeviceHidEventGetReport: {
@@ -101,8 +100,16 @@ usb_status_t UsbMediaKeyboardCallback(class_handle_t handle, uint32_t event, voi
 
         // No boot protocol support for this interface.
         case kUSB_DeviceHidEventGetProtocol:
+            *(uint8_t*)param = 1;
+            error = kStatus_USB_Success;
+            break;
         case kUSB_DeviceHidEventSetProtocol:
-            error = kStatus_USB_InvalidRequest;
+            if (*(uint8_t*)param == 1) {
+                error = kStatus_USB_Success;
+            }
+            else {
+                error = kStatus_USB_InvalidRequest;
+            }
             break;
 
         default:
