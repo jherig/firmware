@@ -19,7 +19,7 @@
     #define USB_SYSTEM_KEYBOARD_INTERRUPT_IN_PACKET_SIZE 8
     #define USB_SYSTEM_KEYBOARD_INTERRUPT_IN_INTERVAL 1
 
-    #define USB_SYSTEM_KEYBOARD_IS_IN_BITFIELD(scancode) (((scancode) >= USB_SYSTEM_KEYBOARD_MIN_BITFIELD_SCANCODE) && ((scancode) <= USB_SYSTEM_KEYBOARD_MAX_BITFIELD_SCANCODE)) 
+    #define USB_SYSTEM_KEYBOARD_IS_IN_BITFIELD(scancode) (((scancode) >= USB_SYSTEM_KEYBOARD_MIN_BITFIELD_SCANCODE) && ((scancode) <= USB_SYSTEM_KEYBOARD_MAX_BITFIELD_SCANCODE))
 
 // Typedefs:
 
@@ -40,5 +40,7 @@
     usb_status_t UsbSystemKeyboardAction(void);
     usb_status_t UsbSystemKeyboardCheckIdleElapsed();
     usb_status_t UsbSystemKeyboardCheckReportReady();
+
+    void UsbSystemKeyboard_MergeReports(usb_system_keyboard_report_t* sourceReport, usb_system_keyboard_report_t* targetReport);
 
 #endif

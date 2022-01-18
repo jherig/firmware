@@ -7,6 +7,7 @@
 #include "config_parser/parse_macro.h"
 #include "config_parser/config_globals.h"
 #include "timer.h"
+#include "usb_interfaces/usb_interface_basic_keyboard.h"
 #include "keymap.h"
 #include "usb_report_updater.h"
 #include "led_display.h"
@@ -110,22 +111,8 @@ static void addBasicScancode(uint8_t scancode)
     if (!scancode) {
         return;
     }
-    if (usbBasicKeyboardProtocol==0) {
-        for (uint8_t i = 0; i < USB_BOOT_KEYBOARD_MAX_KEYS; i++) {
-            if (MacroBasicKeyboardReport.scancodes[i] == scancode) {
-                return;
-            }
-        }
-        for (uint8_t i = 0; i < USB_BOOT_KEYBOARD_MAX_KEYS; i++) {
-            if (!MacroBasicKeyboardReport.scancodes[i]) {
-                MacroBasicKeyboardReport.scancodes[i] = scancode;
-                break;
-            }
-        }
-    } else if (USB_BASIC_KEYBOARD_IS_IN_BITFIELD(scancode)) {
-        set_bit(scancode - USB_BASIC_KEYBOARD_MIN_BITFIELD_SCANCODE, MacroBasicKeyboardReport.bitfield);
-    } else if (USB_BASIC_KEYBOARD_IS_IN_MODIFIERS(scancode)) {
-        set_bit(scancode - USB_BASIC_KEYBOARD_MIN_MODIFIERS_SCANCODE, &MacroBasicKeyboardReport.modifiers);
+    if (!UsbBasicKeyboard_ContainsScancode(&s->ms.macroBasicKeyboardReport, scancode)) {
+        UsbBasicKeyboard_AddScancode(&s->ms.macroBasicKeyboardReport, scancode, NULL);
     }
 }
 
@@ -134,18 +121,7 @@ static void deleteBasicScancode(uint8_t scancode)
     if (!scancode) {
         return;
     }
-    if (usbBasicKeyboardProtocol==0) {
-        for (uint8_t i = 0; i < USB_BOOT_KEYBOARD_MAX_KEYS; i++) {
-            if (MacroBasicKeyboardReport.scancodes[i] == scancode) {
-                MacroBasicKeyboardReport.scancodes[i] = 0;
-                return;
-            }
-        }
-    } else if (USB_BASIC_KEYBOARD_IS_IN_BITFIELD(scancode)) {
-        clear_bit(scancode - USB_BASIC_KEYBOARD_MIN_BITFIELD_SCANCODE, MacroBasicKeyboardReport.bitfield);
-    } else if (USB_BASIC_KEYBOARD_IS_IN_MODIFIERS(scancode)) {
-        clear_bit(scancode - USB_BASIC_KEYBOARD_MIN_MODIFIERS_SCANCODE, &MacroBasicKeyboardReport.modifiers);
-    }
+    UsbBasicKeyboard_RemoveScancode(&s->ms.macroBasicKeyboardReport, scancode);
 }
 
 static void addModifiers(uint8_t modifiers)
@@ -196,7 +172,7 @@ static void addSystemScancode(uint8_t scancode)
     }
     if (USB_SYSTEM_KEYBOARD_IS_IN_BITFIELD(scancode))
     {
-        set_bit(scancode - USB_SYSTEM_KEYBOARD_MIN_BITFIELD_SCANCODE, MacroSystemKeyboardReport.bitfield);
+        set_bit(scancode - USB_SYSTEM_KEYBOARD_MIN_BITFIELD_SCANCODE, s->ms.macroSystemKeyboardReport.bitfield);
     }
 }
 
@@ -207,7 +183,7 @@ static void deleteSystemScancode(uint8_t scancode)
     }
     if (USB_SYSTEM_KEYBOARD_IS_IN_BITFIELD(scancode))
     {
-        clear_bit(scancode - USB_SYSTEM_KEYBOARD_MIN_BITFIELD_SCANCODE, MacroSystemKeyboardReport.bitfield);
+        clear_bit(scancode - USB_SYSTEM_KEYBOARD_MIN_BITFIELD_SCANCODE, s->ms.macroSystemKeyboardReport.bitfield);
     }
 }
 
@@ -593,8 +569,14 @@ static void clearScancodes()
 
 static macro_result_t dispatchText(const char* text, uint16_t textLen)
 {
-    static uint16_t textIndex;
-    static uint8_t reportIndex = USB_BOOT_KEYBOARD_MAX_KEYS;
+    s->ms.reportsUsed = true;
+    static macro_state_t* dispatchMutex = NULL;
+    if (dispatchMutex != s && dispatchMutex != NULL) {
+        return MacroResult_Waiting;
+    } else {
+        dispatchMutex = s;
+    }
+    uint8_t max_keys = (usbBasicKeyboardProtocol==0) ? USB_BOOT_KEYBOARD_MAX_KEYS - 2 : USB_BASIC_KEYBOARD_BITFIELD_LENGTH*8;
     char character = 0;
     uint8_t scancode = 0;
     uint8_t mods = 0;
@@ -621,32 +603,32 @@ static macro_result_t dispatchText(const char* text, uint16_t textLen)
     }
 
     // If all characters have been sent, finish.
-    if (textIndex == currentMacroAction.text.textLen) {
-        textIndex = 0;
-        reportIndex = USB_BOOT_KEYBOARD_MAX_KEYS;
-        memset(&MacroBasicKeyboardReport, 0, sizeof MacroBasicKeyboardReport);
-        return false;
+    if (s->as.dispatchData.textIdx == textLen) {
+        s->as.dispatchData.textIdx = 0;
+        s->as.dispatchData.reportIdx = max_keys;
+        memset(&s->ms.macroBasicKeyboardReport, 0, sizeof s->ms.macroBasicKeyboardReport);
+        dispatchMutex = NULL;
+        return MacroResult_Finished;
     }
 
     // Whenever the report is full, we clear the report and send it empty before continuing.
-    if (reportIndex == USB_BOOT_KEYBOARD_MAX_KEYS) {
-        reportIndex = 0;
-        memset(&MacroBasicKeyboardReport, 0, sizeof MacroBasicKeyboardReport);
-        return true;
+    if (s->as.dispatchData.reportIdx == max_keys) {
+        s->as.dispatchData.reportIdx = 0;
+
+        memset(&s->ms.macroBasicKeyboardReport, 0, sizeof s->ms.macroBasicKeyboardReport);
+        return MacroResult_Blocking;
     }
 
     // If current character is already contained in the report, we need to
     // release it first. We do so by artificially marking the report
     // full. Next call will do rest of the work for us.
-    for (uint8_t i = 0; i < reportIndex; i++) {
-        if (MacroBasicKeyboardReport.scancodes[i] == scancode) {
-            reportIndex = USB_BOOT_KEYBOARD_MAX_KEYS;
-            return true;
-        }
+    if (UsbBasicKeyboard_ContainsScancode(&s->ms.macroBasicKeyboardReport, scancode)) {
+        s->as.dispatchData.reportIdx = max_keys;
+        return MacroResult_Blocking;
     }
 
     // Send the scancode.
-    s->ms.macroBasicKeyboardReport.scancodes[s->as.dispatchData.reportIdx++] = scancode;
+    UsbBasicKeyboard_AddScancode(&s->ms.macroBasicKeyboardReport, scancode, &s->as.dispatchData.reportIdx);
     ++s->as.dispatchData.textIdx;
     return MacroResult_Blocking;
 }

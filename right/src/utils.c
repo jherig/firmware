@@ -39,10 +39,29 @@ void Utils_DecodeId(uint16_t keyid, uint8_t* outSlotId, uint8_t* outSlotIdx)
 void Utils_reportReport(usb_basic_keyboard_report_t* report)
 {
     Macros_SetStatusString("Reporting ", NULL);
-    for ( int i = 0; i < USB_BASIC_KEYBOARD_MAX_KEYS; i++) {
-        if (report->scancodes[i] != 0) {
-            Macros_SetStatusChar(MacroShortcutParser_ScancodeToCharacter(report->scancodes[i]));
+
+
+    if (usbBasicKeyboardProtocol==0) {
+        Macros_SetStatusString(" boot ", NULL);
+        for ( int i = 0; i < USB_BOOT_KEYBOARD_MAX_KEYS; i++) {
+            if (report->scancodes[i] != 0) {
+                Macros_SetStatusChar(MacroShortcutParser_ScancodeToCharacter(report->scancodes[i]));
+            }
+        }
+    } else {
+        Macros_SetStatusString(" bitfield ", NULL);
+        for (uint8_t b = 0; b < USB_BASIC_KEYBOARD_BITFIELD_LENGTH; b++) {
+            if (report->bitfield[b] != 0) {
+                uint8_t byteValue = report->bitfield[b];
+                for (uint8_t j = 0; j < 8; j++) {
+                    if (byteValue & 1) {
+                        Macros_SetStatusChar(MacroShortcutParser_ScancodeToCharacter(USB_BASIC_KEYBOARD_MIN_BITFIELD_SCANCODE + b*8 + j));
+                    }
+                    byteValue = byteValue >> 1;
+                }
+            }
         }
     }
+
     Macros_SetStatusString("\n", NULL);
 }

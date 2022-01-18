@@ -88,3 +88,11 @@ usb_status_t UsbSystemKeyboardCallback(class_handle_t handle, uint32_t event, vo
 
     return error;
 }
+
+void UsbSystemKeyboard_MergeReports(usb_system_keyboard_report_t* sourceReport, usb_system_keyboard_report_t* targetReport)
+{
+    for (int i = 0; i < USB_SYSTEM_KEYBOARD_REPORT_LENGTH; i++) {
+        targetReport->bitfield[i] |= sourceReport->bitfield[i];
+    }
+}
+

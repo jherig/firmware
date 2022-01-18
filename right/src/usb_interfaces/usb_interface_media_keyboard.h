@@ -40,4 +40,6 @@
     usb_status_t UsbMediaKeyboardCheckIdleElapsed();
     usb_status_t UsbMediaKeyboardCheckReportReady();
 
+    void UsbMediaKeyboard_MergeReports(usb_media_keyboard_report_t* sourceReport, usb_media_keyboard_report_t* targetReport, uint8_t* idx);
+
 #endif

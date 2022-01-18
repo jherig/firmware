@@ -20,8 +20,7 @@
     #define USB_BASIC_KEYBOARD_INTERRUPT_IN_INTERVAL 1
 
     #define USB_BASIC_KEYBOARD_IS_IN_BITFIELD(scancode) (((scancode) >= USB_BASIC_KEYBOARD_MIN_BITFIELD_SCANCODE) && ((scancode) <= USB_BASIC_KEYBOARD_MAX_BITFIELD_SCANCODE))
-    #define USB_BASIC_KEYBOARD_IS_IN_MODIFIERS(scancode) (((scancode) >= USB_BASIC_KEYBOARD_MIN_MODIFIERS_SCANCODE) && ((scancode) <= USB_BASIC_KEYBOARD_MAX_MODIFIERS_SCANCODE)) 
-
+    #define USB_BASIC_KEYBOARD_IS_IN_MODIFIERS(scancode) (((scancode) >= USB_BASIC_KEYBOARD_MIN_MODIFIERS_SCANCODE) && ((scancode) <= USB_BASIC_KEYBOARD_MAX_MODIFIERS_SCANCODE))
 
 // Typedefs:
 
@@ -55,6 +54,13 @@
     usb_status_t UsbBasicKeyboardAction(void);
     usb_status_t UsbBasicKeyboardCheckIdleElapsed();
     usb_status_t UsbBasicKeyboardCheckReportReady();
+
+    void UsbBasicKeyboard_AddScancode(usb_basic_keyboard_report_t* report, uint8_t scancode, uint8_t* idx);
+    void UsbBasicKeyboard_RemoveScancode(usb_basic_keyboard_report_t* report, uint8_t scancode);
+    bool UsbBasicKeyboard_ContainsScancode(usb_basic_keyboard_report_t* report, uint8_t scancode);
+    uint8_t UsbBasicKeyboard_ScancodeCount(usb_basic_keyboard_report_t* report);
+    void UsbBasicKeyboard_MergeReports(usb_basic_keyboard_report_t* sourceReport, usb_basic_keyboard_report_t* targetReport, uint8_t* idx);
+
 
     static inline bool test_bit(int nr, const void *addr)
     {

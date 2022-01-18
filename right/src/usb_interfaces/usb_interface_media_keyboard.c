@@ -1,5 +1,6 @@
 #include "usb_composite_device.h"
 #include "usb_report_updater.h"
+#include <stdint.h>
 
 uint32_t UsbMediaKeyboardActionCounter;
 static usb_media_keyboard_report_t usbMediaKeyboardReports[2];
@@ -88,4 +89,14 @@ usb_status_t UsbMediaKeyboardCallback(class_handle_t handle, uint32_t event, voi
     }
 
     return error;
+}
+
+
+void UsbMediaKeyboard_MergeReports(usb_media_keyboard_report_t* sourceReport, usb_media_keyboard_report_t* targetReport, uint8_t* idx)
+{
+    for (int i = 0; sourceReport->scancodes[i] != 0; i++) {
+        if (*idx < USB_MEDIA_KEYBOARD_MAX_KEYS) {
+            targetReport->scancodes[(*idx)++] = sourceReport->scancodes[i];
+        }
+    }
 }
